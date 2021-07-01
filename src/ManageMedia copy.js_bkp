@@ -1,0 +1,148 @@
+import React, { useState, useEffect } from 'react'
+import 'bootstrap/dist/css/bootstrap.min.css'
+import { Button, Modal, Table } from 'react-bootstrap'
+import { MdDelete } from 'react-icons/md'
+import Nav from './Nav'
+import config from './config.json'
+
+function ManageMedia() {
+  useEffect(() => {
+    fetchMedia()
+  }, [])
+
+  const [show, setShow] = useState(false)
+
+  const handleClose = () => setShow(false)
+  const handleShow = () => setShow(true)
+
+  const confirmDelete = (media) => {}
+
+  const handleDelete = (media) => {
+    console.log(media)
+    //
+    let fd = new FormData()
+    fd.append('command', 'DEL')
+    fd.append('media', media)
+
+    let xhr = new XMLHttpRequest()
+    let url = config.SERVER_URL + 'manage_media.php'
+
+    xhr.open('POST', url, true)
+
+    xhr.onreadystatechange = function () {
+      if (this.readyState == 4 && this.status == 200) {
+        let response = this.responseText
+        if (response == 1) {
+          //let us = document.getElementById('uploadStatus')
+          //us.innerHTML = 'Uploaded successfully'
+          console.log('Deleted Successfully')
+          fetchMedia()
+          //us.className = 'text-success'
+          //us.style.visibility = 'visible'
+          //config.logo = 'user-images/' + file_ele.files[0].name
+        } else {
+          //let us = document.getElementById('uploadStatus')
+          //us.innerText = 'Failed to upload file'
+          //us.className = 'text-danger'
+          //us.style.visibility = 'visible'
+          console.log('Failed to delete')
+          fetchMedia()
+        }
+      }
+    }
+    xhr.send(fd)
+  }
+
+  const uploadClicked = () => {
+    //sdf
+    let file_ele = document.getElementById('inputFile')
+    if (file_ele.files.length > 0) {
+      let fd = new FormData()
+      fd.append('inputFile', file_ele.files[0])
+
+      let xhr = new XMLHttpRequest()
+      let url = config.SERVER_URL + 'upload_media.php'
+
+      xhr.open('POST', url, true)
+
+      xhr.onreadystatechange = function () {
+        if (this.readyState == 4 && this.status == 200) {
+          let response = this.responseText
+          if (response == 1) {
+            let us = document.getElementById('uploadStatus')
+            us.innerHTML = 'Uploaded successfully'
+            fetchMedia()
+            us.className = 'text-success'
+            //us.style.visibility = 'visible'
+            //config.logo = 'user-images/' + file_ele.files[0].name
+          } else {
+            let us = document.getElementById('uploadStatus')
+            us.innerText = 'Failed to upload file'
+            us.className = 'text-danger'
+            //us.style.visibility = 'visible'
+          }
+        }
+      }
+      xhr.send(fd)
+    } else {
+      alert('Please select a file.')
+    }
+  }
+
+  const [medias, setMedias] = useState([])
+
+  const fetchMedia = async () => {
+    let url = config.SERVER_URL + 'list_media.php'
+    const data = await fetch(url)
+    //console.log(data)
+    const data_medias = await data.json()
+    //console.log(medias)
+    setMedias(data_medias.media_list)
+  }
+
+  return (
+    <div>
+      <Nav />
+      <h5>Manage Medias</h5>
+      <Table size='sm' responsive striped bordered hover>
+        <thead>
+          <tr>
+            <th>Media name</th>
+          </tr>
+        </thead>
+        <tbody>
+          {medias.map((media) => (
+            <tr key={media}>
+              <td>
+                <div className='media-card'>
+                  <div>
+                    <span>{media}</span>
+                  </div>
+                  <div onClick={() => handleDelete(media)}>
+                    <MdDelete className='delete-icon text-danger' />
+                  </div>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+      <Button variant='primary' onClick={handleShow}>
+        Add file
+      </Button>
+
+      <Modal show={show} onHide={handleClose}>
+        <Modal.Header closeButton>
+          <Modal.Title>Upload Files</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <input type='file' id='inputFile' name='inputFile' />
+          <button onClick={uploadClicked}>Upload</button>
+          <div id='uploadStatus'></div>
+        </Modal.Body>
+      </Modal>
+    </div>
+  )
+}
+
+export default ManageMedia

@@ -1,0 +1,294 @@
+import React, { useState, useEffect } from 'react'
+import {
+  Table,
+  Button,
+  Modal,
+  Form,
+  Dropdown,
+  ButtonGroup,
+  DropdownButton,
+} from 'react-bootstrap'
+import TextField from '@material-ui/core/TextField'
+import { RiAddLine } from 'react-icons/ri'
+import { MdDelete, MdSave } from 'react-icons/md'
+import Nav from './Nav'
+import config from './config.json'
+import AddSchedule from './AddSchedule'
+
+function ClientMedia(match) {
+  useEffect(() => {
+    fetchClientMedia()
+    fetchAllMediasForSelect()
+  }, [])
+
+  const isLoadingMedia = false
+  //const [clientMedia, setClientMedia] = useState({})
+  const [clientName, setClientName] = useState('')
+  const [media_list, setMediaList] = useState([])
+  const [allMedias, setAllMedias] = useState([])
+  const [save, setSave] = useState(false)
+
+  const [show, setShow] = useState(false)
+
+  const handleClose = () => setShow(false)
+  const handleShow = () => setShow(true)
+
+  const fetchClientMedia = async () => {
+    const url = config.SERVER_URL + 'list_client_media.php?client_id='
+    const data = await fetch(
+      // `http://localhost/mysite/ads_client_backend/list_client_media.php?client_id=${match.match.params.id}`
+      `${url}${match.match.params.id}`
+    )
+    const data_client_media = await data.json()
+    setClientName(data_client_media.client_name)
+    setMediaList(data_client_media.media_list)
+
+    //setClientMedia(data_client_media)
+  }
+
+  const fetchAllMediasForSelect = async () => {
+    const murl = config.SERVER_URL + 'list_media.php'
+    const mdata = await fetch(murl)
+    const jsondata = await mdata.json()
+    console.log(jsondata)
+    setAllMedias(jsondata.media_list)
+  }
+
+  const handleSaveClick = () => {
+    console.log('save clicked')
+    let rows = document.getElementsByClassName('schedule-row')
+    let req = {}
+    req.client_name = clientName
+    req.media_list = []
+
+    for (let i = 0; i < rows.length; i++) {
+      let temp = {}
+      temp.name = rows[i].childNodes[0].innerText
+      temp.from = document.getElementById(temp.name + '_fromdate').value
+      temp.to = document.getElementById(temp.name + '_todate').value
+      temp.priority = rows[i].childNodes[3].firstChild.value
+      //console.log(temp)
+      req.media_list.push(temp)
+    }
+    //console.log(req)
+    let fd = new FormData()
+    fd.append('data', JSON.stringify(req))
+
+    let xhr = new XMLHttpRequest()
+    let url = config.SERVER_URL + 'manage_client_media.php'
+
+    xhr.open('POST', url, true)
+
+    xhr.onreadystatechange = function () {
+      if (this.readyState == 4 && this.status == 200) {
+        let response = this.responseText
+        if (response == 1) {
+          console.log('Saved Successfully')
+          let status = document.getElementById('save-status')
+          status.innerText = 'Saved'
+          status.display = 'block'
+          status.className = 'text-success'
+          setTimeout(function () {
+            document.getElementById('save-status').innerText = ''
+          }, 3000)
+
+          fetchClientMedia()
+        } else {
+          console.log('Failed to save schedules')
+          let status = document.getElementById('save-status')
+          status.value = 'Failed to save'
+          status.display = 'block'
+          status.className = 'text-danger'
+
+          setTimeout(function () {
+            document.getElementById('save-status').innerText = ''
+          }, 3000)
+
+          fetchClientMedia()
+        }
+      }
+    }
+    xhr.send(fd)
+  }
+
+  const handleAddSchedule = () => {
+    const media = {}
+    media.id = uniqid('media_')
+    media.name = document.getElementById('ad-schedule-media').value
+    //media.name = document.getElementById('add-media-text').value
+    media.from = document.getElementById('add-from-date').value
+    media.to = document.getElementById('add-to-date').value
+    media.priority = document.getElementById('add-priority-text').value
+    const add_status_ele = document.getElementById('add-status')
+
+    //Validate from and to
+    if (media.from === '') {
+      add_status_ele.innerText = 'Please select valid From date'
+      add_status_ele.display = 'block'
+      return
+    } else if (media.to === '') {
+      add_status_ele.innerText = 'Please select valid To date'
+      add_status_ele.display = 'block'
+      return
+    } else if (media.to < media.from) {
+      add_status_ele.innerText = 'Selected From date is after To date'
+      add_status_ele.display = 'block'
+      return
+    }
+    add_status_ele.display = 'none'
+    //console.log(document.getElementById('add-schedule-media'))
+
+    if (media.name === '' || media.name === undefined) {
+      add_status_ele.value = 'Invalid media name'
+      return
+    }
+
+    console.log(media)
+    //console.log(clientMedia)
+    media_list.push(media)
+    //setClientMedia(clientMedia)
+    setMediaList(media_list)
+
+    setSave(true)
+    handleClose()
+  }
+
+  function uniqid(prefix = '', random = false) {
+    const sec = Date.now() * 1000 + Math.random() * 1000
+    const id = sec.toString(16).replace(/\./g, '').padEnd(14, '0')
+    return `${prefix}${id}${
+      random ? `.${Math.trunc(Math.random() * 100000000)}` : ''
+    }`
+  }
+
+  const handleDelete = (mediaid) => {
+    console.log('delete ' + mediaid)
+    var arr = media_list.filter((m) => m.id !== mediaid)
+
+    //console.log(arr)
+    //setClientMedia(client_media)
+    setMediaList(arr)
+  }
+
+  if (clientName !== undefined)
+    return (
+      <div>
+        <Nav />
+        <h4 className='schedule-head'>Manage schedule for {clientName}</h4>
+        <div className='schedule-head'>
+          <Button onClick={handleShow}>
+            <RiAddLine /> New Schedule
+          </Button>
+          <Button
+            id='save-schedule'
+            className='save-button'
+            onClick={handleSaveClick}
+          >
+            <MdSave /> Save
+          </Button>{' '}
+          <span id='save-status'>Status</span>
+        </div>
+        <Table className='schedule-table' striped bordered hover>
+          <thead>
+            <tr>
+              <th>Media Name</th>
+              <th>From</th>
+              <th>To</th>
+              <th>Priority</th>
+            </tr>
+          </thead>
+          <tbody id='schedule-body'>
+            {media_list.map((media, index) => (
+              <ScheduleRow
+                key={media.id}
+                data={media}
+                id={media.id}
+                onChange={() => setSave(true)}
+                deleteHandler={handleDelete}
+              />
+            ))}
+          </tbody>
+        </Table>
+        <AddSchedule
+          show={show}
+          handleClose={handleClose}
+          allmedia={allMedias}
+          handleAddSchedule={handleAddSchedule}
+        />
+      </div>
+    )
+  else return <div></div>
+}
+
+function ScheduleRow(props) {
+  const media = new Object(props.data)
+  const [media_name, setMediaName] = useState(props.data.name)
+  const [from_date, setFromDate] = useState(props.data.from)
+  const [to_date, setToDate] = useState(props.data.to)
+  const [priority, setPriority] = useState(props.data.priority)
+
+  const handleChanged = () => {
+    console.log('Value Changed')
+    document.getElementById('save-schedule').disabled = false
+  }
+
+  const handleDelete = () => {
+    console.log('Delete schedule')
+    props.deleteHandler(props.id)
+  }
+
+  return (
+    <tr className='schedule-row'>
+      <td>
+        <div key={media_name}>
+          {media_name}
+          <MdDelete
+            onClick={() => handleDelete()}
+            className='delete-icon text-danger'
+          />
+        </div>
+      </td>
+      <td>
+        <div key={media_name + from_date}>
+          <TextField
+            id={media_name + '_fromdate'}
+            type='datetime-local'
+            defaultValue={from_date}
+            className='datetime'
+            onChange={handleChanged}
+            size='small'
+            InputLabelProps={{
+              shrink: true,
+            }}
+          />
+        </div>
+      </td>
+      <td>
+        <div key={media_name + to_date}>
+          <TextField
+            id={media_name + '_todate'}
+            type='datetime-local'
+            defaultValue={to_date}
+            className='datetime'
+            onChange={handleChanged}
+            InputLabelProps={{
+              shrink: true,
+            }}
+          />
+        </div>
+      </td>
+      <td>
+        <input
+          id={media_name + '_priority'}
+          className='priority-text'
+          type='text'
+          key={priority}
+          defaultValue={priority}
+          onChange={handleChanged}
+        />
+      </td>
+    </tr>
+  )
+}
+
+export default ClientMedia
